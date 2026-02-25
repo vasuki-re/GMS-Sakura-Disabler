@@ -68,6 +68,7 @@ unzip -o "$ZIPFILE" -d "$MODPATH" >&2
 GMSLIST="$MODPATH/gmslist.txt"
 SCRIPT_FILE="$MODPATH/action.sh"
 UNINSTALL_SCRIPT="$MODPATH/uninstall.sh"
+SERVICE_SCRIPT="$MODPATH/service.sh"
 
 [ ! -f "$GMSLIST" ] && { ui_print "Error: gmslist.txt not found!"; exit 1; }
 
@@ -75,9 +76,9 @@ ui_print ""
 ui_print "GMS Sakura 🌸"
 ui_print ""
 
-v_ads=0; v_tracking=0; v_analytics=0; v_reporting=0; v_background=1; v_update=0
-v_location=1; v_geofence=0; v_nearby=0; v_cast=0; v_discovery=0; v_sync=0
-v_cloud=0; v_auth=0; v_wallet=0; v_payment=1; v_wear=0; v_fitness=0
+v_ads=0; v_tracking=0; v_analytics=0; v_reporting=1; v_background=1; v_update=0
+v_location=1; v_geofence=0; v_nearby=0; v_cast=0; v_discovery=0; v_sync=1
+v_cloud=1; v_auth=1; v_wallet=0; v_payment=0; v_wear=0; v_fitness=0
 
 GMS_CATEGORIES="ADS TRACKING ANALYTICS REPORTING BACKGROUND UPDATE LOCATION GEOFENCE NEARBY CAST DISCOVERY SYNC CLOUD AUTH WALLET PAYMENT WEAR FITNESS"
 
@@ -87,6 +88,13 @@ USE_PRESET=0
 
 if [ -f "$PRESET_FILE" ]; then
   ui_print "Preset found!"
+fi
+
+choose_option "Use default preset?" "Yes"
+if [ $? -eq 0 ]; then
+  USE_PRESET=1
+  ui_print "Default preset loaded."
+elif [ -f "$PRESET_FILE" ]; then
   choose_option "Use existing preset?" "Yes"
   if [ $? -eq 0 ]; then
     . "$PRESET_FILE"
@@ -126,7 +134,9 @@ if [ "$USE_PRESET" -eq 0 ]; then
     choose_option "$emoji Disable $cat?" "$default"
     set_cat_value "$cat" "$?"
   done
+fi
 
+if [ ! -f "$MODPATH/preset" ]; then
   # Save preset
   cat > "$MODPATH/preset" <<EOF
 v_ads=$v_ads
@@ -193,6 +203,11 @@ echo "GMS Sakura 🌸 Uninstaller"
 COUNTER=0
 UNINSTALL_START
 
+cat > "$SERVICE_SCRIPT" << 'SERVICE_START'
+#!/system/bin/sh
+until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done
+SERVICE_START
+
 COUNTER=0
 
 while IFS="|" read -r SERVICE CATEGORY; do
@@ -226,6 +241,7 @@ while IFS="|" read -r SERVICE CATEGORY; do
     COUNTER=$((COUNTER+1))
     echo "pm \"\$action\" \"$SERVICE\" >/dev/null 2>&1" >> "$SCRIPT_FILE"
     echo "pm enable \"$SERVICE\" >/dev/null 2>&1" >> "$UNINSTALL_SCRIPT"
+    echo "pm disable \"$SERVICE\" >/dev/null 2>&1" >> "$SERVICE_SCRIPT"
   fi
 done < "$GMSLIST"
 
@@ -244,7 +260,7 @@ cat >> "$UNINSTALL_SCRIPT" << 'UNINSTALL_END'
 echo "✅ Enabled $COUNTER services"
 UNINSTALL_END
 
-chmod 0755 "$SCRIPT_FILE" "$UNINSTALL_SCRIPT"
+chmod 0755 "$SCRIPT_FILE" "$UNINSTALL_SCRIPT" "$SERVICE_SCRIPT"
 
 ui_print ""
 ui_print "✅ Disabled $COUNTER services"
