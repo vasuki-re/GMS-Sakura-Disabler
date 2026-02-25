@@ -251,8 +251,12 @@ ui_print ""
 ui_print "✅ Complete"
 if [ "\$action" = "disable" ]; then
   ui_print "Disabled $COUNTER services."
+  sleep 3
+  exit 0
 else
   ui_print "Enabled $COUNTER services."
+  sleep 3
+  exit 0
 fi
 EOF
 
